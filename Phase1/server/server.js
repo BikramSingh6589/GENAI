@@ -21,7 +21,7 @@ app.post("/api/chat", async (req, res) => {
 
     // Start Groq streaming
     const stream = await groq.chat.completions.create({
-      model: "llama3-8b-8192", // You can change model if needed
+      model: "llama-3.1-8b-instant", // You can change model if needed
       messages: [
         { role: "user", content: message }
       ],
