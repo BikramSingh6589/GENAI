@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import Groq from "groq-sdk";
 import dotenv from "dotenv";
-import pkg from "pg";
+
 
 
 dotenv.config();
@@ -24,6 +24,7 @@ const pool = new Pool({
     rejectUnauthorized: false
   }
 });
+
 //---------------------------------------
 
 
@@ -35,6 +36,13 @@ const groq = new Groq({
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
+
+    // Save msg to the db
+    await pool.query(
+      "INSERT INTO messages (role, content) VALUES ($1, $2)",
+      ["user", message]
+    );
+
 
     // Start Groq streaming
     const stream = await groq.chat.completions.create({
@@ -49,13 +57,21 @@ app.post("/api/chat", async (req, res) => {
     res.setHeader("Content-Type", "text/plain");
     res.setHeader("Transfer-Encoding", "chunked");
 
+    let fullreply = "";
+
     // Send chunks as they arrive
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content || "";
       if (content) {
+        fullreply+=content
         res.write(content);
       }
     }
+
+    await pool.query(
+      "INSERT INTO messages (role, content) VALUES ($1, $2)",
+      ["assistant", fullreply]
+    );
 
     res.end();
 
