@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import Groq from "groq-sdk";
 import dotenv from "dotenv";
+import { neon } from "@neondatabase/serverless";
 
 dotenv.config();
 
@@ -10,35 +11,55 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize Groq
+/* -------------------- DATABASE -------------------- */
+const sql = neon(process.env.DATABASE_URL);
+
+/* -------------------- GROQ -------------------- */
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
+/* -------------------- CHAT ROUTE -------------------- */
 app.post("/api/chat", async (req, res) => {
   try {
     const { message } = req.body;
 
-    // Start Groq streaming
+    // 1️⃣ Save user message
+    await sql`
+      INSERT INTO messages (role, content)
+      VALUES (${ "user" }, ${ message })
+    `;
+
+    // 2️⃣ Start Groq streaming
     const stream = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant", // You can change model if needed
-      messages: [
-        { role: "user", content: message }
-      ],
+      model: "llama-3.1-8b-instant",
+      messages: [{ role: "user", content: message }],
       stream: true,
     });
 
-    // Streaming headers
+    // 3️⃣ Streaming headers
     res.setHeader("Content-Type", "text/plain");
     res.setHeader("Transfer-Encoding", "chunked");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
 
-    // Send chunks as they arrive
+    let fullReply = "";
+
+    // 4️⃣ Stream response to frontend
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content || "";
+
       if (content) {
+        fullReply += content;
         res.write(content);
       }
     }
+
+    // 5️⃣ Save assistant reply
+    await sql`
+      INSERT INTO messages (role, content)
+      VALUES (${ "assistant" }, ${ fullReply })
+    `;
 
     res.end();
 
@@ -48,6 +69,24 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+/* -------------------- GET MESSAGES -------------------- */
+app.get("/api/messages", async (req, res) => {
+  try {
+    const messages = await sql`
+      SELECT role, content
+      FROM messages
+      ORDER BY id ASC
+    `;
+
+    res.json(messages);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
+/* -------------------- START SERVER -------------------- */
 app.listen(3000, () => {
   console.log("Server running on http://localhost:3000");
 });
