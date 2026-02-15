@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import Groq from "groq-sdk";
 import dotenv from "dotenv";
+import pkg from "pg";
+
 
 dotenv.config();
 
@@ -9,6 +11,21 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+
+//- Database Config
+
+import pkg from "pg";
+const { Pool } = pkg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+//---------------------------------------
+
 
 // Initialize Groq
 const groq = new Groq({
@@ -47,6 +64,15 @@ app.post("/api/chat", async (req, res) => {
     res.status(500).json({ error: "Something went wrong" });
   }
 });
+
+
+app.get("/api/messages", async (req, res) => {
+  const result = await pool.query(
+    "SELECT role, content FROM messages ORDER BY id ASC"
+  );
+  res.json(result.rows);
+});
+
 
 app.listen(3000, () => {
   console.log("Server running on http://localhost:3000");
