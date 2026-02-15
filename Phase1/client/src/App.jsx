@@ -25,11 +25,13 @@ function App() {
 
   // TODO 5: Send message to backend
   const sendMessage = async () => {
-  if (!input.trim()) return;
+  if (!input.trim()) return; // if input is empty, do nothing
 
-  const userMessage = { role: "user", content: input };
-  setMessages(prev => [...prev, userMessage]);
+  const userMessage = { role: "user", content: input }; // create usermsg object
+  setMessages(prev => [...prev, userMessage]); // 
 
+
+  // Send it to backend
   const response = await fetch("http://localhost:3000/api/chat", {
     method: "POST",
     headers: {
