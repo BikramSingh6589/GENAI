@@ -14,7 +14,7 @@ function App() {
 
   // TODO 4: Load old messages from backend when page loads
   useEffect(() => {
-    fetch("http://localhost:3000/api/messages")
+    fetch("https://genai-gp2a.onrender.com/api/messages")
       .then(res => res.json())
       .then(data => {
         setMessages(data);
@@ -39,7 +39,7 @@ function App() {
   setInput("");
 
   // Send it to backend
-  const response = await fetch("http://localhost:3000/api/chat", {
+  const response = await fetch("https://genai-gp2a.onrender.com/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message: input })
